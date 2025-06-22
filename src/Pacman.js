@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 
 // Constants for the board
-const ROWS = 21;
-const COLS = 19;
 const TILE = {
   WALL: 0,
   DOT: 1,
@@ -41,9 +39,11 @@ const BOARD = [
   [0,1,1,1,1,1,1,1,1,0,1,1,1,1,1,1,1,1,0],
   [0,1,0,0,0,1,0,0,1,0,1,0,0,0,1,0,0,1,0],
   [0,3,1,1,0,1,1,1,1,1,1,1,1,1,0,1,1,3,0],
-  [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
-  [2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2],
+  [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
 ];
+
+const ROWS = BOARD.length;
+const COLS = BOARD[0].length;
 
 const DIRS = {
   ArrowUp: { x: 0, y: -1 },
@@ -142,7 +142,8 @@ export default function Pacman() {
   const ghostsRef = useRef(ghosts);
   const boardRef = useRef();
   // Responsive SVG size
-  const [svgSize, setSvgSize] = useState({ width: 456, height: 504 });
+  const [svgSize, setSvgSize] = useState({ width: 456, height: 480 });
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 700);
 
   useEffect(() => { dirRef.current = dir; }, [dir]);
   useEffect(() => { ghostsRef.current = ghosts; }, [ghosts]);
@@ -150,9 +151,11 @@ export default function Pacman() {
   // Responsive resize handler
   useEffect(() => {
     function handleResize() {
-      // Fit to 90vw, max 456px, keep aspect
+      setIsMobile(window.innerWidth < 700);
+      // Fit to 95vw, max 456px, keep aspect, but limit height for all screens to avoid scrolling
       const maxW = Math.min(window.innerWidth * 0.95, 456);
-      const maxH = Math.min(window.innerHeight * 0.6, 504);
+      // Use a smaller height ratio for all screens to avoid scroll
+      const maxH = Math.min(window.innerHeight * 0.65, ROWS * 24 * 1.05);
       const scale = Math.min(maxW / (COLS * 24), maxH / (ROWS * 24), 1);
       setSvgSize({ width: COLS * 24 * scale, height: ROWS * 24 * scale });
     }
@@ -280,62 +283,122 @@ export default function Pacman() {
   return (
     <div style={{ textAlign: 'center', marginTop: 20 }}>
       <h2 style={{ color: '#ff0', fontFamily: 'monospace', fontSize: 32 }}>Pac-Man</h2>
-      <div style={{ color: '#fff', fontFamily: 'monospace', fontSize: 20 }}>Score: {score}</div>
-      <div style={{ display: 'inline-block', background: '#111', border: '4px solid #ff0', marginTop: 20, position: 'relative' }}>
-        <div style={{ width: svgSize.width, height: svgSize.height }}>
-          <svg
-            ref={boardRef}
-            width={svgSize.width}
-            height={svgSize.height}
-            viewBox={`0 0 ${COLS * 24} ${ROWS * 24}`}
-            style={{ background: '#111', display: 'block', margin: '0 auto', touchAction: 'none' }}
+      {isMobile ? (
+        <>
+          <div style={{ color: '#fff', fontFamily: 'monospace', fontSize: 20 }}>Score: {score}</div>
+          <div style={{ display: 'inline-block', background: '#111', border: '4px solid #ff0', marginTop: 20, position: 'relative' }}>
+            <div style={{ width: svgSize.width, height: svgSize.height }}>
+              <svg
+                ref={boardRef}
+                width={svgSize.width}
+                height={svgSize.height}
+                viewBox={`0 0 ${COLS * 24} ${ROWS * 24}`}
+                style={{ background: '#111', display: 'block', margin: '0 auto', touchAction: 'none' }}
+              >
+                {/* Board and entities */}
+                {drawBoard(board, pacman, ghosts, mouthOpen, dir)}
+              </svg>
+            </div>
+          </div>
+          {/* D-pad below board for mobile */}
+          <div
+            style={{
+              margin: '24px auto 0',
+              zIndex: 2,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              userSelect: 'none',
+              touchAction: 'none',
+              maxWidth: svgSize.width,
+            }}
           >
-            {/* Board and entities */}
-            {drawBoard(board, pacman, ghosts, mouthOpen, dir)}
-          </svg>
-        </div>
-      </div>
-      {/* D-pad overlay for touch/mobile, now outside the board */}
-      <div
-        style={{
-          margin: '24px auto 0',
-          zIndex: 2,
+            <button
+              aria-label="Up"
+              onTouchStart={() => handleDPad('ArrowUp')}
+              onClick={() => handleDPad('ArrowUp')}
+              style={dpadBtnStyle('up')}
+            >▲</button>
+            <div style={{ display: 'flex', flexDirection: 'row' }}>
+              <button
+                aria-label="Left"
+                onTouchStart={() => handleDPad('ArrowLeft')}
+                onClick={() => handleDPad('ArrowLeft')}
+                style={dpadBtnStyle('left')}
+              >◀</button>
+              <div style={{ width: 32 }} />
+              <button
+                aria-label="Right"
+                onTouchStart={() => handleDPad('ArrowRight')}
+                onClick={() => handleDPad('ArrowRight')}
+                style={dpadBtnStyle('right')}
+              >▶</button>
+            </div>
+            <button
+              aria-label="Down"
+              onTouchStart={() => handleDPad('ArrowDown')}
+              onClick={() => handleDPad('ArrowDown')}
+              style={dpadBtnStyle('down')}
+            >▼</button>
+          </div>
+        </>
+      ) : (
+        // Desktop: score and D-pad on sides
+        <div style={{
           display: 'flex',
-          flexDirection: 'column',
+          justifyContent: 'center',
           alignItems: 'center',
-          userSelect: 'none',
-          touchAction: 'none',
-          maxWidth: svgSize.width,
-        }}
-      >
-        <button
-          aria-label="Up"
-          onTouchStart={() => handleDPad('ArrowUp')}
-          onClick={() => handleDPad('ArrowUp')}
-          style={dpadBtnStyle('up')}
-        >▲</button>
-        <div style={{ display: 'flex', flexDirection: 'row' }}>
-          <button
-            aria-label="Left"
-            onTouchStart={() => handleDPad('ArrowLeft')}
-            onClick={() => handleDPad('ArrowLeft')}
-            style={dpadBtnStyle('left')}
-          >◀</button>
-          <div style={{ width: 32 }} />
-          <button
-            aria-label="Right"
-            onTouchStart={() => handleDPad('ArrowRight')}
-            onClick={() => handleDPad('ArrowRight')}
-            style={dpadBtnStyle('right')}
-          >▶</button>
+          marginTop: 20,
+          gap: 24,
+        }}>
+          {/* Score left */}
+          <div style={{ minWidth: 120, color: '#fff', fontFamily: 'monospace', fontSize: 24, textAlign: 'right' }}>
+            <div>Score:</div>
+            <div style={{ fontSize: 32, color: '#ff0', fontWeight: 'bold' }}>{score}</div>
+          </div>
+          {/* Board center */}
+          <div style={{ display: 'inline-block', background: '#111', border: '4px solid #ff0', position: 'relative' }}>
+            <div style={{ width: svgSize.width, height: svgSize.height }}>
+              <svg
+                ref={boardRef}
+                width={svgSize.width}
+                height={svgSize.height}
+                viewBox={`0 0 ${COLS * 24} ${ROWS * 24}`}
+                style={{ background: '#111', display: 'block', margin: '0 auto', touchAction: 'none' }}
+              >
+                {/* Board and entities */}
+                {drawBoard(board, pacman, ghosts, mouthOpen, dir)}
+              </svg>
+            </div>
+          </div>
+          {/* D-pad right */}
+          <div style={{ minWidth: 120, display: 'flex', flexDirection: 'column', alignItems: 'center', userSelect: 'none', touchAction: 'none' }}>
+            <button
+              aria-label="Up"
+              onClick={() => handleDPad('ArrowUp')}
+              style={dpadBtnStyle('up')}
+            >▲</button>
+            <div style={{ display: 'flex', flexDirection: 'row' }}>
+              <button
+                aria-label="Left"
+                onClick={() => handleDPad('ArrowLeft')}
+                style={dpadBtnStyle('left')}
+              >◀</button>
+              <div style={{ width: 32 }} />
+              <button
+                aria-label="Right"
+                onClick={() => handleDPad('ArrowRight')}
+                style={dpadBtnStyle('right')}
+              >▶</button>
+            </div>
+            <button
+              aria-label="Down"
+              onClick={() => handleDPad('ArrowDown')}
+              style={dpadBtnStyle('down')}
+            >▼</button>
+          </div>
         </div>
-        <button
-          aria-label="Down"
-          onTouchStart={() => handleDPad('ArrowDown')}
-          onClick={() => handleDPad('ArrowDown')}
-          style={dpadBtnStyle('down')}
-        >▼</button>
-      </div>
+      )}
       {gameOver && (
         <div style={{ color: '#f44', fontFamily: 'monospace', fontSize: 24, marginTop: 20 }}>
           <div>Game Over!</div>
